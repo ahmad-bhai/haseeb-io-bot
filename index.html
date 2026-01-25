@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>HQT - HASEEB QUOTEX TRADER</title>
+    
+    <link rel="icon" href="https://i.ibb.co/RpX58Czq/IMG-20260121-200056-679.jpg" type="image/png">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/RpX58Czq/IMG-20260121-200056-679.jpg">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
+        body { background-color: #05070a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+
+        /* --- LOCK SCREEN --- */
+        #lockOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #05070a; display: flex; justify-content: center; align-items: center; z-index: 99999; }
+        .white-box { background: white; padding: 35px 25px; border-radius: 30px; width: 350px; text-align: center; color: #000; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        .circle-logo { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; margin-bottom: 12px; }
+        #verifyStatus { font-size: 15px; font-weight: bold; margin-bottom: 12px; color: #555; }
+        .uid-text { font-family: monospace; font-size: 16px; font-weight: bold; background: #f4f4f4; padding: 12px; border-radius: 12px; border: 1px dashed #34ace1; margin-bottom: 18px; color: #222; word-break: break-all; letter-spacing: 1px; }
+        .locked-tag { font-size: 40px; font-weight: 900; color: #ef4444; margin-bottom: 15px; letter-spacing: 2px; }
+        .contact-area { display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; color: #0088cc; font-weight: bold; font-size: 16px; margin-bottom: 15px; }
+        .line { height: 1px; background: #eee; width: 100%; margin-bottom: 15px; }
+        .retry-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; background: #000; color: #fff; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
+
+        /* --- MAIN APP --- */
+        #mainApp { display: none; width: 100%; max-width: 380px; text-align: center; }
+        .header img { width: 90px; height: 90px; border-radius: 50%; border: 3px solid #00f7ff; box-shadow: 0 0 15px #00f7ff66; margin-bottom: 10px; }
+        .header h1 { font-size: 22px; font-weight: 800; background: linear-gradient(to right, #00f7ff, #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .container { background: #0f172a; border: 1px solid #1e293b; border-radius: 25px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-top: 15px; }
+        .input-box { text-align: left; margin-bottom: 15px; position: relative; }
+        label { display: block; font-size: 11px; color: #64748b; margin-left: 5px; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
+
+        .custom-select-btn { width: 100%; padding: 14px; border-radius: 12px; background: linear-gradient(135deg, #1e293b, #020617); border: 1px solid rgba(0, 247, 255, 0.3); color: #00f7ff; text-align: left; cursor: pointer; font-weight: 600; font-size: 14px; }
+        .options-list { display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #020617; border: 1px solid #00f7ff44; border-radius: 12px; z-index: 100; max-height: 250px; overflow-y: auto; margin-top: 5px; }
+        .options-list div { padding: 12px; color: #e5faff; border-bottom: 1px solid #1e293b; cursor: pointer; font-size: 13px; }
+        .options-list div:hover { background: rgba(0, 247, 255, 0.1); color: #00f7ff; }
+
+        .analyze-btn { width: 100%; padding: 16px; border-radius: 15px; border: none; background: #00f7ff; color: #000; font-weight: 900; font-size: 16px; cursor: pointer; text-transform: uppercase; }
+        
+        /* --- RESULT BOX & CANDLE --- */
+        .result-box { margin-top: 20px; background: #020617; border: 2px solid #00f7ff; border-radius: 20px; height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .candle-icon { width: 12px; height: 50px; margin-bottom: 5px; position: relative; display: none; }
+        .candle-icon::before, .candle-icon::after { content: ""; position: absolute; left: 50%; transform: translateX(-50%); width: 2px; }
+        .candle-icon::before { top: -10px; height: 10px; background: inherit; } /* Wick top */
+        .candle-icon::after { bottom: -10px; height: 10px; background: inherit; } /* Wick bottom */
+        
+        .signal-text { font-size: 45px; font-weight: 900; margin-top: 5px; }
+        .timer-countdown { font-size: 16px; color: #94a3b8; margin-top: 10px; font-family: monospace; }
+        
+        .loader { border: 4px solid #1e293b; border-top: 4px solid #00f7ff; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="lockOverlay">
+        <div class="white-box">
+            <img class="circle-logo" src="https://i.ibb.co/RpX58Czq/IMG-20260121-200056-679.jpg">
+            <div id="verifyStatus">Checking Access...</div>
+            <div class="uid-text" id="displayUID">LOADING...</div>
+            <div id="lockDetails" style="display:none;">
+                <div class="locked-tag">LOCKED</div>
+                <a href="https://t.me/HQT_TRADER101" class="contact-area" target="_blank">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/2048px-Telegram_logo.svg.png" width="20">
+                    @HQT_TRADER101
+                </a>
+                <div class="line"></div>
+                <div style="font-weight:bold; color:#666; font-size:12px; margin-bottom:15px;">CONTACT TO UNLOCK</div>
+                <button class="retry-btn" onclick="location.reload()">RETRY ACCESS</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainApp">
+        <div class="header">
+            <img src="https://i.ibb.co/RpX58Czq/IMG-20260121-200056-679.jpg">
+            <h1>HASEEB QUOTEX TRADER</h1>
+        </div>
+
+        <div class="container">
+            <div class="input-box">
+                <label>Select Market Pair</label>
+                <button class="custom-select-btn" id="pairBtn" onclick="toggleDropdown('pairOptions')">USD/PKR(OTC)</button>
+                <div class="options-list" id="pairOptions">
+                    <div onclick="selectPair('USD/PKR(OTC)')">USD/PKR(OTC)</div>
+                    <div onclick="selectPair('USD/ARS(OTC)')">USD/ARS(OTC)</div>
+                    <div onclick="selectPair('USD/CAD(OTC)')">USD/CAD(OTC)</div>
+                    <div onclick="selectPair('USD/DZD(OTC)')">USD/DZD(OTC)</div>
+                    <div onclick="selectPair('USD/NZD(OTC)')">USD/NZD(OTC)</div>
+                    <div onclick="selectPair('NZD/CAD(OTC)')">NZD/CAD(OTC)</div>
+                    <div onclick="selectPair('USD/BDT(OTC)')">USD/BDT(OTC)</div>
+                    <div onclick="selectPair('USD/MXN(OTC)')">USD/MXN(OTC)</div>
+                    <div onclick="selectPair('USD/TRY(OTC)')">USD/TRY(OTC)</div>
+                    <div onclick="selectPair('NZD/JPY(OTC)')">NZD/JPY(OTC)</div>
+                    <div onclick="selectPair('Solana(OTC)')">Solana(OTC)</div>
+                    <div onclick="selectPair('Celestia(OTC)')">Celestia(OTC)</div>
+                    <div onclick="selectPair('TRON(OTC)')">TRON(OTC)</div>
+                    <div onclick="selectPair('Trump(OTC)')">Trump(OTC)</div>
+                    <div onclick="selectPair('Gold(OTC)')">Gold(OTC)</div>
+                    <div onclick="selectPair('Silver(OTC)')">Silver(OTC)</div>
+                    <div onclick="selectPair('UScrude(OTC)')">UScrude(OTC)</div>
+                    <div onclick="selectPair('UKBrent(OTC)')">UKBrent(OTC)</div>
+                    <div onclick="selectPair('Johnson & Johnson(OTC)')">Johnson & Johnson(OTC)</div>
+                    <div onclick="selectPair('Intel(OTC)')">Intel(OTC)</div>
+                    <div onclick="selectPair('FACEBOOK INC(OTC)')">FACEBOOK INC(OTC)</div>
+                    <div onclick="selectPair('Pfizer Inc(OTC)')">Pfizer Inc(OTC)</div>
+                    <div onclick="selectPair('Microsoft(OTC)')">Microsoft(OTC)</div>
+                    <div onclick="selectPair('American Express(OTC)')">American Express(OTC)</div>
+                    <div onclick="selectPair('Boeing Company(OTC)')">Boeing Company(OTC)</div>
+                    <div onclick="selectPair('McDonald\'s(OTC)')">McDonald's(OTC)</div>
+                    <div onclick="selectPair('Pepe(OTC)')">Pepe(OTC)</div>
+                </div>
+            </div>
+
+            <div class="input-box">
+                <label>Select Expiry Time</label>
+                <button class="custom-select-btn" id="timeBtn" onclick="toggleDropdown('timeOptions')">1 mint</button>
+                <div class="options-list" id="timeOptions">
+                    <div onclick="selectTime('5 sec', 5)">5 sec</div>
+                    <div onclick="selectTime('10 sec', 10)">10 sec</div>
+                    <div onclick="selectTime('15 sec', 15)">15 sec</div>
+                    <div onclick="selectTime('30 sec', 30)">30 sec</div>
+                    <div onclick="selectTime('1 mint', 60)">1 mint</div>
+                    <div onclick="selectTime('2 mint', 120)">2 mint</div>
+                    <div onclick="selectTime('5 mint', 300)">5 mint</div>
+                    <div onclick="selectTime('10 mint', 600)">10 mint</div>
+                </div>
+            </div>
+
+            <button class="analyze-btn" id="mainBtn" onclick="startAnalysis()">GET HQT SIGNAL</button>
+
+            <div class="result-box">
+                <div id="loader" class="loader" style="display:none;"></div>
+                <div id="candle" class="candle-icon"></div>
+                <div id="signalResult" class="signal-text" style="color:#1e293b;">READY</div>
+                <div id="countdown" class="timer-countdown"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let myUID = localStorage.getItem('hqt_20_digit_id_raw');
+        if (!myUID) {
+            myUID = Array.from({length: 20}, () => Math.floor(Math.random() * 10)).join('');
+            localStorage.setItem('hqt_20_digit_id_raw', myUID);
+        }
+        document.getElementById('displayUID').innerText = myUID;
+
+        const projectID = "reactions-maker-site"; 
+        const dbURL = `https://${projectID}-default-rtdb.firebaseio.com/users.json`;
+
+        window.onload = function() {
+            setTimeout(verifyAccess, 2500); 
+        };
+
+        function verifyAccess() {
+            fetch(dbURL).then(r => r.json()).then(data => {
+                let approved = false;
+                if (data) {
+                    Object.values(data).forEach(u => { if(u.id === myUID) approved = true; });
+                }
+
+                const statusText = document.getElementById('verifyStatus');
+                if (approved) {
+                    statusText.innerText = "Checking Access... Registered.";
+                    statusText.style.color = "green";
+                    setTimeout(() => {
+                        document.getElementById('lockOverlay').style.display = 'none';
+                        document.getElementById('mainApp').style.display = 'block';
+                    }, 1200);
+                } else {
+                    statusText.innerText = "ACCESS ERROR";
+                    statusText.style.color = "red";
+                    document.getElementById('lockDetails').style.display = 'block';
+                }
+            }).catch(() => {
+                document.getElementById('verifyStatus').innerText = "NETWORK ERROR";
+            });
+        }
+
+        function toggleDropdown(id) {
+            document.querySelectorAll('.options-list').forEach(el => { if(el.id !== id) el.style.display = 'none'; });
+            const d = document.getElementById(id);
+            d.style.display = d.style.display === 'block' ? 'none' : 'block';
+        }
+
+        let selectedSecs = 60;
+        function selectPair(val) {
+            document.getElementById('pairBtn').innerText = val;
+            document.getElementById('pairOptions').style.display = 'none';
+        }
+        function selectTime(text, sec) {
+            document.getElementById('timeBtn').innerText = text;
+            selectedSecs = sec;
+            document.getElementById('timeOptions').style.display = 'none';
+        }
+
+        function startAnalysis() {
+            const btn = document.getElementById('mainBtn');
+            const res = document.getElementById('signalResult');
+            const loader = document.getElementById('loader');
+            const candle = document.getElementById('candle');
+            const cd = document.getElementById('countdown');
+
+            btn.disabled = true;
+            res.innerText = "";
+            candle.style.display = "none";
+            loader.style.display = "block";
+            cd.innerText = "ANALYZING...";
+
+            setTimeout(() => {
+                loader.style.display = "none";
+                candle.style.display = "block";
+                
+                const isCall = Math.random() > 0.48; 
+                if (isCall) {
+                    res.innerText = "CALL";
+                    res.style.color = "#22c55e";
+                    candle.style.backgroundColor = "#22c55e";
+                } else {
+                    res.innerText = "PUT";
+                    res.style.color = "#ef4444";
+                    candle.style.backgroundColor = "#ef4444";
+                }
+                runCountdown(selectedSecs);
+            }, 3000);
+        }
+
+        function runCountdown(duration) {
+            let timer = duration;
+            const cd = document.getElementById('countdown');
+            const btn = document.getElementById('mainBtn');
+            const tick = setInterval(() => {
+                let m = parseInt(timer / 60, 10), s = parseInt(timer % 60, 10);
+                cd.innerText = `EXPIRY: ${m < 10 ? "0"+m : m}:${s < 10 ? "0"+s : s}`;
+                if (--timer < 0) { 
+                    clearInterval(tick); 
+                    cd.innerText = "WAIT NEXT SIGNAL"; 
+                    btn.disabled = false; 
+                }
+            }, 1000);
+        }
+
+        window.onclick = function(e) {
+            if (!e.target.matches('.custom-select-btn')) {
+                document.querySelectorAll('.options-list').forEach(el => el.style.display = 'none');
+            }
+        }
+    </script>
+</body>
+</html>

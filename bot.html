@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Bot Builder</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Bot Builder Platform</h1>
+            <p>Manage your Telegram bots without traditional login.</p>
+        </header>
+
+        <div class="card id-card">
+            <h3>Your Unique User ID</h3>
+            <p class="id-display" id="uniqueIdDisplay">Loading...</p>
+            <small>Save this ID safely. Do not clear browser local storage to keep access.</small>
+        </div>
+
+        <div class="card form-card">
+            <h3>Create New Bot</h3>
+            <form id="botForm">
+                <div class="input-group">
+                    <label>Bot Name</label>
+                    <input type="text" id="botName" placeholder="e.g. MyAwesomeBot" required>
+                </div>
+                <div class="input-group">
+                    <label>Telegram Bot Token (from @BotFather)</label>
+                    <input type="text" id="botToken" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" required>
+                </div>
+                <button type="submit" class="btn">Deploy Bot</button>
+            </form>
+            <p id="responseMsg" class="msg"></p>
+        </div>
+
+        <div class="card list-card">
+            <h3>Your Active Bots</h3>
+            <div id="botsContainer">
+                <p>Loading your bots...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

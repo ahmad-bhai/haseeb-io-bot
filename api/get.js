@@ -1,57 +1,72 @@
-export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+const express = require('express');
+const path = require('path');
+const TelegramBot = require('node-telegram-bot-api');
 
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
+const app = express();
+const PORT = process.0 || 3000;
 
-    const { token, status, chat } = req.query;
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-    if (!token || !status) {
-        return res.status(400).json({
-            success: false,
-            message: "Missing parameters! Use format: /api/get?token=YOUR_TOKEN&status=true&chat=@channel"
-        });
-    }
+// In-memory storage (Aap ise MongoDB ya JSON file se replace kar sakte hain)
+let botsDatabase = []; 
+let activeBotInstances = {};
 
-    const isEnable = status.toLowerCase() === 'true';
-    const targetChat = chat || '@your_channel_username';
-
+// Bot Token verify karke run karne ka function
+function startBotInstance(botData) {
     try {
-        if (isEnable) {
-            // Telegram API ko direct fetch ke zariye check karna taake crash na ho
-            const telegramUrl = `https://api.telegram.org/bot${token}/getMe`;
-            const response = await fetch(telegramUrl);
-            const data = await response.json();
+        if (activeBotInstances[botData.botToken]) return; // Agar pehle se chal raha hai
 
-            if (!data.ok) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid Telegram Bot Token!"
-                });
+        const bot = new TelegramBot(botData.botToken, { polling: true });
+        
+        bot.on('message', (msg) => {
+            const chatId = msg.chat.id;
+            const text = msg.text;
+            
+            if (text === '/start') {
+                bot.sendMessage(chatId, `Hello! 👋 Your bot is successfully running on our custom platform.`);
+            } else {
+                bot.sendMessage(chatId, `Echo: ${text}`);
             }
-
-            return res.status(200).json({
-                success: true,
-                status: "installed",
-                bot_name: data.result.username,
-                target_chat: targetChat,
-                message: `Bot @${data.result.username} successfully installed & activated!`
-            });
-
-        } else {
-            return res.status(200).json({
-                success: true,
-                status: "uninstalled",
-                message: "Bot successfully deactivated."
-            });
-        }
-
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            error: error.message
         });
+
+        activeBotInstances[botData.botToken] = bot;
+        console.log(`Bot started successfully for User ID: ${botData.userId}`);
+    } catch (error) {
+        console.error(`Failed to start bot (${botData.botToken}):`, error.message);
     }
 }
+
+// API: Create / Register Bot
+app.post('/api/create-bot', async (req, res) => {
+    const { userId, botName, botToken } = req.body;
+
+    if (!userId || !botName || !botToken) {
+        return res.status(400).json({ success: false, message: 'All fields are required!' });
+    }
+
+    // Check if token already exists
+    const exists = botsDatabase.find(b => b.botToken === botToken);
+    if (exists) {
+        return res.status(400).json({ success: false, message: 'This bot token is already registered!' });
+    }
+
+    const newBot = { userId, botName, botToken, createdAt: new Date() };
+    botsDatabase.push(newBot);
+
+    // Start the bot on Telegram
+    startBotInstance(newBot);
+
+    res.json({ success: true, message: 'Bot created and started successfully!' });
+});
+
+// API: Get User's Bots using 20-digit Unique ID
+app.get('/api/my-bots/:userId', (req, res) => {
+    const { userId } = req.params;
+    const userBots = botsDatabase.filter(b => b.userId === userId);
+    res.json({ success: true, bots: userBots });
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+});

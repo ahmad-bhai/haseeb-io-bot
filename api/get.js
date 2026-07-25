@@ -1,7 +1,6 @@
-// Vercel Serverless Function for Telegram Bot Management
+import TelegramBot from 'node-telegram-bot-api';
 
 export default async function handler(req, res) {
-    // CORS headers agar zaroorat ho
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
 
@@ -9,46 +8,49 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
 
-    // URL se token aur status nikalna (Query params ya path se)
-    // Example format: /api/get?token=YOUR_TOKEN&status=true
-    const { token, status } = req.query;
+    // URL se parameters nikalna: /api/get?token=YOUR_TOKEN&status=true&chat=@channel
+    const { token, status, chat } = req.query;
 
     if (!token || !status) {
         return res.status(400).json({
             success: false,
-            message: "Missing parameters! Use format: /api/get?token=YOUR_TOKEN&status=true"
+            message: "Missing parameters! Use format: /api/get?token=YOUR_TOKEN&status=true&chat=@channel"
         });
     }
 
     const isEnable = status.toLowerCase() === 'true';
+    const targetChat = chat || '@your_channel_username';
 
     try {
         if (isEnable) {
-            // Yahan bot install / activate hone ki logic aayegi
-            // Note: Vercel par setInterval kaam nahi karega, isliye yahan aap database (jaise MongoDB ya Vercel KV) mein token save kar sakte hain.
-            
+            // Telegram Bot instance create karna
+            const bot = new TelegramBot(token, { polling: false });
+
+            // Yahan aap bot ki koi bhi Telegram API request run kar sakte hain
+            // Misal ke taur par, channel ki info check karna ya members count lena:
+            const chatInfo = await bot.getChat(targetChat);
+
             return res.status(200).json({
                 success: true,
-                token: token,
                 status: "installed",
-                message: `Bot successfully installed & activated for token: ${token.substring(0, 8)}...`,
-                target_url: `https://haseeb-io-bot.vercel.app/api/get?token=${token}&status=true`
+                channel: chatInfo.title || targetChat,
+                message: `Bot successfully activated! Target channel: ${targetChat}`,
+                note: "Vercel par 10-minute automated loop ke liye is URL ko kisi external Cron service se bar bar hit karwana hoga."
             });
+
         } else {
-            // Yahan bot uninstall / deactivate hone ki logic aayegi
-            
             return res.status(200).json({
                 success: true,
-                token: token,
                 status: "uninstalled",
-                message: `Bot successfully uninstalled & deactivated.`,
-                target_url: `https://haseeb-io-bot.vercel.app/api/get?token=${token}&status=false`
+                message: `Bot successfully deactivated for token: ${token.substring(0, 8)}...`
             });
         }
+
     } catch (error) {
         return res.status(500).json({
             success: false,
-            error: error.message
+            error: error.message,
+            hint: "Make sure the bot token is correct and the bot is an admin in the target channel/group."
         });
     }
 }

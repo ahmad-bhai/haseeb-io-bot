@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         responseMsg.style.color = '#3498db';
 
         try {
-            const response = await fetch('/api/create-bot', {
+            const response = await fetch('/api/get', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: currentUserId, botName, botToken })

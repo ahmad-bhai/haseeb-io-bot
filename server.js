@@ -1,72 +1,72 @@
 const express = require('express');
-const { Api, TelegramClient } = require('telegram');
-const { StringSession } = require('telegram/sessions');
+const path = require('path');
+const TelegramBot = require('node-telegram-bot-api');
+
 const app = express();
+const PORT = process.0 || 3000;
+
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Background jobs ya active sessions store karne ke liye
-const activeTasks = new Map();
+// In-memory storage (Aap ise MongoDB ya JSON file se replace kar sakte hain)
+let botsDatabase = []; 
+let activeBotInstances = {};
 
-// --- API ENDPOINT ---
-// URL: /api/get?token=YOUR_BOT_TOKEN&status=true&chat=@your_channel
-app.get('/api/get', async (req, res) => {
-    const { token, status, chat } = req.query;
-    
-    if (!token || !status) {
-        return res.status(400).json({ success: false, message: "Token and status are required!" });
-    }
+// Bot Token verify karke run karne ka function
+function startBotInstance(botData) {
+    try {
+        if (activeBotInstances[botData.botToken]) return; // Agar pehle se chal raha hai
 
-    const isEnable = status.toLowerCase() === 'true';
-    const targetChat = chat || '@your_channel_username';
-
-    if (isEnable) {
-        // Agar pehle se chal raha hai toh dobara start na ho
-        if (activeTasks.has(token)) {
-            return res.json({ success: true, message: "Bot is already running and adding members!" });
-        }
-
-        // Background Interval: Har 10 minutes (600,000 ms) baad task run hoga
-        const intervalId = setInterval(async () => {
-            try {
-                console.log(`[RUNNING] Bot using token/session trying to process members for ${targetChat}...`);
-                
-                // Yahan members add karne ki API request ya logic aayegi
-                // Note: Telegram par direct random members add karne ke liye Userbot (MTProto) 
-                // ya phone sessions ki zaroorat hoti hai, standard Bot token se limits hoti hain.
-                
-            } catch (error) {
-                console.error(`[ERROR] Member addition failed:`, error.message);
+        const bot = new TelegramBot(botData.botToken, { polling: true });
+        
+        bot.on('message', (msg) => {
+            const chatId = msg.chat.id;
+            const text = msg.text;
+            
+            if (text === '/start') {
+                bot.sendMessage(chatId, `Hello! 👋 Your bot is successfully running on our custom platform.`);
+            } else {
+                bot.sendMessage(chatId, `Echo: ${text}`);
             }
-        }, 10 * 60 * 1000); // 10 Minutes
-
-        activeTasks.set(token, intervalId);
-
-        return res.json({
-            success: true,
-            status: "activated",
-            message: `System activated! Bot will attempt to process members every 10 minutes for ${targetChat}.`
         });
 
-    } else {
-        // Stop / Uninstall
-        if (activeTasks.has(token)) {
-            clearInterval(activeTasks.get(token));
-            activeTasks.delete(token);
-        }
-
-        return res.json({
-            success: true,
-            status: "deactivated",
-            message: "System successfully stopped and uninstalled."
-        });
+        activeBotInstances[botData.botToken] = bot;
+        console.log(`Bot started successfully for User ID: ${botData.userId}`);
+    } catch (error) {
+        console.error(`Failed to start bot (${botData.botToken}):`, error.message);
     }
+}
+
+// API: Create / Register Bot
+app.post('/api/create-bot', async (req, res) => {
+    const { userId, botName, botToken } = req.body;
+
+    if (!userId || !botName || !botToken) {
+        return res.status(400).json({ success: false, message: 'All fields are required!' });
+    }
+
+    // Check if token already exists
+    const exists = botsDatabase.find(b => b.botToken === botToken);
+    if (exists) {
+        return res.status(400).json({ success: false, message: 'This bot token is already registered!' });
+    }
+
+    const newBot = { userId, botName, botToken, createdAt: new Date() };
+    botsDatabase.push(newBot);
+
+    // Start the bot on Telegram
+    startBotInstance(newBot);
+
+    res.json({ success: true, message: 'Bot created and started successfully!' });
 });
 
-app.get('/', (req, res) => {
-    res.json({ message: "Telegram Member Automation Server is Live!" });
+// API: Get User's Bots using 20-digit Unique ID
+app.get('/api/my-bots/:userId', (req, res) => {
+    const { userId } = req.params;
+    const userBots = botsDatabase.filter(b => b.userId === userId);
+    res.json({ success: true, bots: userBots });
 });
 
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server is running on http://localhost:${PORT}`);
 });

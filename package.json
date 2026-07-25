@@ -1,6 +1,13 @@
 {
+  "name": "bot-builder-platform",
+  "version": "1.0.0",
+  "description": "Custom bot builder like bots.business",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
     "express": "^4.19.2",
-    "telegram": "^2.22.2"
+    "node-telegram-bot-api": "^0.66.0"
   }
 }

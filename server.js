@@ -8,7 +8,7 @@ app.use(express.json());
 
 const DATA_FILE = path.join(__dirname, 'tokens.json');
 
-// Helper function to read/write tokens data
+// Helper functions for data management
 function loadData() {
     if (!fs.existsSync(DATA_FILE)) {
         fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2));
@@ -20,17 +20,13 @@ function saveData(data) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-// Active background jobs store karne ke liye map (token -> interval ID)
+// Active jobs ko track karne ke liye Map (token -> interval ID)
 const activeJobs = new Map();
-
-// Target channel jahan members add karne hain (Apna channel username ya ID yahan dein)
-const TARGET_CHANNEL = process.env.TARGET_CHANNEL || '@your_channel_username';
 
 // --- API ROUTES ---
 
-// 1. Toggle Bot Status: /api/get/:token/:status
-// Status can be 'true' or 'false'
-app.get('/api/get/:token/:status', ( एक्सप्रेस, res ) => {}); // Syntax safety
+// Endpoint format: /api/get/:token/:status
+// Example: https://haseeb-io-bot.vercel.app/api/get/YOUR_BOT_TOKEN/true
 app.get('/api/get/:token/:status', (req, res) => {
     const { token, status } = req.params;
     const isEnable = status.toLowerCase() === 'true';
@@ -39,7 +35,6 @@ app.get('/api/get/:token/:status', (req, res) => {
     let botRecord = botsData.find(b => b.token === token);
 
     if (!botRecord) {
-        // Agar naya token hai toh list mein add kar dein
         botRecord = { token, active: false };
         botsData.push(botRecord);
     }
@@ -49,45 +44,48 @@ app.get('/api/get/:token/:status', (req, res) => {
 
     if (isEnable) {
         startBotAutomation(token);
-        return res.json({ success: true, message: `Bot installed & activated. Will run every 10 minutes.` });
+        return res.json({ 
+            success: true, 
+            message: `Bot successfully installed & activated. Running every 10 minutes.`,
+            url: `https://haseeb-io-bot.vercel.app/api/get/${token}/true`
+        });
     } else {
         stopBotAutomation(token);
-        return res.json({ success: true, message: `Bot uninstalled & deactivated.` });
+        return res.json({ 
+            success: true, 
+            message: `Bot successfully uninstalled & deactivated.`,
+            url: `https://haseeb-io-bot.vercel.app/api/get/${token}/false`
+        });
     }
+});
+
+// Root route check
+app.get('/', (req, res) => {
+    res.json({ status: "Telegram Bot Automation API is running smoothly." });
 });
 
 // --- AUTOMATION BACKGROUND ENGINE ---
 
 function startBotAutomation(token) {
-    // Agar pehle se chal raha hai toh dobara start na ho
     if (activeJobs.has(token)) return;
 
     console.log(`[STARTED] Automation started for token: ${token.substring(0, 8)}...`);
 
-    // Instance create karein
+    // Telegram Bot Instance (Polling off kyunki yeh background background task/scheduler hai)
     const bot = new TelegramBot(token, { polling: false });
 
-    // Interval: Har 10 minutes (600,000 milliseconds) baad execute hoga
+    // 10 minutes interval (10 * 60 * 1000 ms)
     const INTERVAL_TIME = 10 * 60 * 1000; 
 
-    // Optional: Pehli dafa foran run karne ke liye ya direct interval par rakhne ke liye
     const intervalId = setInterval(async () => {
         try {
-            console.log(`[RUNNING] Bot ${token.substring(0, 8)} attempting to add members...`);
+            console.log(`[RUNNING] Executing task for bot: ${token.substring(0, 8)}...`);
             
-            // NOTE: Standard Telegram Bot API (HTTP API) direct random users ko channel mein 
-            // add karne ki ijazat nahi deta jab tak user contact list mein na ho ya invite link use na ho.
-            // Lekin agar bot ke paas channel ki admin rights hain aur aap invite link / chat members 
-            // fetch karke add karne ki logic chalana chahte hain, toh yahan wo code execute hoga.
-            // (Example: Bot channel logs update kar sakta hai ya specific tasks perform kar sakta hai)
+            // Yahan aap apni custom bot logic likh sakte hain 
+            // (Jaise channel stats check karna ya messages process karna)
             
-            // Aam taur par standard bots chat mein seedha user add nahi kar sakte baghair contact sync ke.
-            // Isliye yahan aap apni custom add logic ya Telegram chat invite methods likh sakte hain.
-            
-            console.log(`[SUCCESS] 10 interval cycles processed for channel ${TARGET_CHANNEL}`);
-
         } catch (error) {
-            console.error(`[ERROR] Bot execution error:`, error.response?.body || error.message);
+            console.error(`[ERROR] Bot execution error:`, error.message);
         }
     }, INTERVAL_TIME);
 
@@ -102,7 +100,7 @@ function stopBotAutomation(token) {
     }
 }
 
-// Server startup par jo bots pehle se 'true' active hain unhe resume karna
+// Server restart hone par active bots ko dobara resume karna
 function restoreActiveBots() {
     const botsData = loadData();
     botsData.forEach(b => {
@@ -117,4 +115,3 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     restoreActiveBots();
 });
-      
